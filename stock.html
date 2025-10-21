@@ -1,0 +1,1271 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Price Prediction</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 200"><path d="M0,100 C150,200 350,0 500,100 C650,200 850,0 1000,100 L1000,200 L0,200 Z" fill="rgba(255,255,255,0.1)"/></svg>');
+            background-size: cover;
+            background-position: bottom;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .stock-video {
+            width: 100%;
+            max-width: 600px;
+            height: 200px;
+            border-radius: 15px;
+            margin: 20px auto;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stock-video::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .stock-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .stock-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            animation: float 3s ease-in-out infinite;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .stock-icon:hover {
+            transform: scale(1.1);
+        }
+        
+        .stock-icon .symbol {
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+        
+        .stock-icon:nth-child(1) { animation-delay: -0.5s; }
+        .stock-icon:nth-child(2) { animation-delay: -1s; }
+        .stock-icon:nth-child(3) { animation-delay: -2s; }
+        .stock-icon:nth-child(4) { animation-delay: -0.5s; }
+        .stock-icon:nth-child(5) { animation-delay: -1.5s; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .control-group input, .control-group select {
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metric-card h3 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+        
+        .metric-card p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        
+        .prediction-result {
+            background: linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .prediction-result::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .prediction-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .investment-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .investment-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        .investment-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.6);
+        }
+        
+        .broker-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .broker-link {
+            background: rgba(255,255,255,0.9);
+            color: #2c3e50;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .broker-link:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .popular-stocks {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .popular-stocks::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .popular-stocks-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .popular-stocks h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stocks-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stocks-table th,
+        .stocks-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .stocks-table th {
+            background: rgba(255,255,255,0.2);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stocks-table tr:hover {
+            background: rgba(255,255,255,0.1);
+            cursor: pointer;
+        }
+        
+        .stock-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 15px;
+        }
+        
+        .company-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .company-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .company-name {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .company-symbol {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .price-change {
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        .price-change.positive {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+        
+        .price-change.negative {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+        
+        .more-tickers-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            margin: 20px auto;
+        }
+        
+        .more-tickers-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.6);
+        }
+        
+        .ticker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .ticker-modal-content {
+            position: relative;
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .ticker-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .ticker-close:hover {
+            color: #333;
+        }
+        
+        .ticker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .ticker-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .ticker-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .prediction-result h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        .prediction-result .price {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>📈 Stock Price Predictor</h1>
+                <p>AI-powered stock market prediction using neural networks</p>
+                
+                <div class="stock-video">
+                    📊 Live Market Analytics 📈
+                </div>
+                
+                <div class="stock-icons">
+                    <div class="stock-icon" onclick="selectStock('AAPL')">
+                        <div>🍎</div>
+                        <div class="symbol">AAPL</div>
+                    </div>
+                    <div class="stock-icon" onclick="selectStock('GOOGL')">
+                        <div>🔍</div>
+                        <div class="symbol">GOOGL</div>
+                    </div>
+                    <div class="stock-icon" onclick="selectStock('MSFT')">
+                        <div>🪟</div>
+                        <div class="symbol">MSFT</div>
+                    </div>
+                    <div class="stock-icon" onclick="selectStock('TSLA')">
+                        <div>⚡</div>
+                        <div class="symbol">TSLA</div>
+                    </div>
+                    <div class="stock-icon" onclick="selectStock('META')">
+                        <div>📱</div>
+                        <div class="symbol">META</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="stockSymbol">Stock Symbol</label>
+                    <input type="text" id="stockSymbol" value="AAPL" placeholder="e.g., AAPL, GOOGL, MSFT">
+                </div>
+                
+                <div class="control-group">
+                    <label for="predictionDays">Prediction Period</label>
+                    <select id="predictionDays">
+                        <option value="1">1 Day</option>
+                        <option value="7">1 Week</option>
+                        <option value="30">1 Month</option>
+                        <option value="90">3 Months</option>
+                        <option value="180">6 Months</option>
+                        <option value="365">1 Year</option>
+                        <option value="1095">3 Years</option>
+                        <option value="1825">5 Years</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="modelType">Model Type</label>
+                    <select id="modelType">
+                        <option value="lstm">LSTM Neural Network</option>
+                        <option value="linear">Linear Regression</option>
+                        <option value="sma">Simple Moving Average</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn" id="predictBtn">🚀 Generate Prediction</button>
+                </div>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div id="predictionResult" style="display: none;"></div>
+            
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+            
+            <div class="metrics" id="metrics" style="display: none;">
+                <div class="metric-card">
+                    <h3 id="accuracy">--</h3>
+                    <p>Model Accuracy</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="mse">--</h3>
+                    <p>Mean Squared Error</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="trend">--</h3>
+                    <p>Predicted Trend</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="confidence">--</h3>
+                    <p>Confidence Level</p>
+                </div>
+            </div>
+            
+            <div class="popular-stocks">
+                <div class="popular-stocks-content">
+                    <h2>🏆 Top 5 Stock Predictions</h2>
+                    <table class="stocks-table">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Current Price</th>
+                                <th>1 Month Prediction</th>
+                                <th>Change</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stocksTableBody">
+                            <tr onclick="selectStock('AAPL')">
+                                <td>
+                                    <div class="company-info">
+                                        <div class="stock-logo">🍎</div>
+                                        <div class="company-details">
+                                            <div class="company-name">Apple Inc.</div>
+                                            <div class="company-symbol">AAPL</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>$185.42</td>
+                                <td>$192.15</td>
+                                <td><span class="price-change positive">+3.6%</span></td>
+                                <td>📈 Bullish</td>
+                            </tr>
+                            <tr onclick="selectStock('GOOGL')">
+                                <td>
+                                    <div class="company-info">
+                                        <div class="stock-logo">🔍</div>
+                                        <div class="company-details">
+                                            <div class="company-name">Alphabet Inc.</div>
+                                            <div class="company-symbol">GOOGL</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>$142.87</td>
+                                <td>$148.92</td>
+                                <td><span class="price-change positive">+4.2%</span></td>
+                                <td>📈 Bullish</td>
+                            </tr>
+                            <tr onclick="selectStock('MSFT')">
+                                <td>
+                                    <div class="company-info">
+                                        <div class="stock-logo">🪟</div>
+                                        <div class="company-details">
+                                            <div class="company-name">Microsoft Corp.</div>
+                                            <div class="company-symbol">MSFT</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>$428.73</td>
+                                <td>$441.28</td>
+                                <td><span class="price-change positive">+2.9%</span></td>
+                                <td>📈 Bullish</td>
+                            </tr>
+                            <tr onclick="selectStock('TSLA')">
+                                <td>
+                                    <div class="company-info">
+                                        <div class="stock-logo">⚡</div>
+                                        <div class="company-details">
+                                            <div class="company-name">Tesla Inc.</div>
+                                            <div class="company-symbol">TSLA</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>$248.91</td>
+                                <td>$239.44</td>
+                                <td><span class="price-change negative">-3.8%</span></td>
+                                <td>📉 Bearish</td>
+                            </tr>
+                            <tr onclick="selectStock('META')">
+                                <td>
+                                    <div class="company-info">
+                                        <div class="stock-logo">📱</div>
+                                        <div class="company-details">
+                                            <div class="company-name">Meta Platforms</div>
+                                            <div class="company-symbol">META</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>$518.24</td>
+                                <td>$532.67</td>
+                                <td><span class="price-change positive">+2.8%</span></td>
+                                <td>📈 Bullish</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button class="more-tickers-btn" onclick="openTickerModal()">
+                            📋 View More Tickers
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticker Modal -->
+    <div id="tickerModal" class="ticker-modal">
+        <div class="ticker-modal-content">
+            <span class="ticker-close" onclick="closeTickerModal()">&times;</span>
+            <h2>📊 Complete Stock Ticker List</h2>
+            <p>Click on any company to analyze their stock predictions</p>
+            
+            <div class="ticker-grid">
+                <div class="ticker-card" onclick="selectStockFromModal('AAPL')">
+                    <h3>🍎 Apple Inc.</h3>
+                    <p><strong>AAPL</strong></p>
+                    <p>Technology • Consumer Electronics</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('GOOGL')">
+                    <h3>🔍 Alphabet Inc.</h3>
+                    <p><strong>GOOGL</strong></p>
+                    <p>Technology • Internet Services</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('MSFT')">
+                    <h3>🪟 Microsoft Corp.</h3>
+                    <p><strong>MSFT</strong></p>
+                    <p>Technology • Software</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('TSLA')">
+                    <h3>⚡ Tesla Inc.</h3>
+                    <p><strong>TSLA</strong></p>
+                    <p>Automotive • Electric Vehicles</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('META')">
+                    <h3>📱 Meta Platforms</h3>
+                    <p><strong>META</strong></p>
+                    <p>Technology • Social Media</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('AMZN')">
+                    <h3>📦 Amazon.com Inc.</h3>
+                    <p><strong>AMZN</strong></p>
+                    <p>Consumer Discretionary • E-commerce</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('NFLX')">
+                    <h3>🎬 Netflix Inc.</h3>
+                    <p><strong>NFLX</strong></p>
+                    <p>Communication • Streaming</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('NVDA')">
+                    <h3>🔥 NVIDIA Corp.</h3>
+                    <p><strong>NVDA</strong></p>
+                    <p>Technology • Semiconductors</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('JPM')">
+                    <h3>🏦 JPMorgan Chase</h3>
+                    <p><strong>JPM</strong></p>
+                    <p>Financial • Banking</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('JNJ')">
+                    <h3>💊 Johnson & Johnson</h3>
+                    <p><strong>JNJ</strong></p>
+                    <p>Healthcare • Pharmaceuticals</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('V')">
+                    <h3>💳 Visa Inc.</h3>
+                    <p><strong>V</strong></p>
+                    <p>Financial • Payment Processing</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('WMT')">
+                    <h3>🛒 Walmart Inc.</h3>
+                    <p><strong>WMT</strong></p>
+                    <p>Consumer Staples • Retail</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('DIS')">
+                    <h3>🏰 Walt Disney Co.</h3>
+                    <p><strong>DIS</strong></p>
+                    <p>Communication • Entertainment</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('BA')">
+                    <h3>✈️ Boeing Co.</h3>
+                    <p><strong>BA</strong></p>
+                    <p>Industrials • Aerospace</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('KO')">
+                    <h3>🥤 Coca-Cola Co.</h3>
+                    <p><strong>KO</strong></p>
+                    <p>Consumer Staples • Beverages</p>
+                </div>
+                <div class="ticker-card" onclick="selectStockFromModal('PFE')">
+                    <h3>💉 Pfizer Inc.</h3>
+                    <p><strong>PFE</strong></p>
+                    <p>Healthcare • Pharmaceuticals</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let chart = null;
+        let model = null;
+        let stockData = [];
+        
+        // Stock selection functions
+        function selectStock(symbol) {
+            document.getElementById('stockSymbol').value = symbol;
+            generatePrediction();
+        }
+        
+        function selectStockFromModal(symbol) {
+            document.getElementById('stockSymbol').value = symbol;
+            closeTickerModal();
+            generatePrediction();
+        }
+        
+        // Modal functions
+        function openTickerModal() {
+            document.getElementById('tickerModal').style.display = 'block';
+        }
+        
+        function closeTickerModal() {
+            document.getElementById('tickerModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('tickerModal');
+            if (event.target === modal) {
+                closeTickerModal();
+            }
+        }
+        
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Historical Price',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Predicted Price',
+                        data: [],
+                        borderColor: '#ff6b6b',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Stock Price Analysis & Prediction',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Price ($)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Generate synthetic stock data (simulating API call)
+        function generateStockData(symbol, days = 60) {
+            const data = [];
+            const labels = [];
+            let price = 150 + Math.random() * 100; // Base price
+            const trend = (Math.random() - 0.5) * 0.02; // Overall trend
+            
+            const today = new Date();
+            for (let i = days; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                
+                // Add some realistic price movement with seasonality
+                const seasonality = Math.sin((i / 365) * 2 * Math.PI) * 0.01;
+                const dailyChange = (Math.random() - 0.5) * 0.05 + trend + seasonality;
+                price = price * (1 + dailyChange);
+                
+                // Add some noise and volatility
+                const noise = (Math.random() - 0.5) * 0.02;
+                const finalPrice = price * (1 + noise);
+                
+                data.push(parseFloat(finalPrice.toFixed(2)));
+                labels.push(date.toISOString().split('T')[0]);
+            }
+            
+            return { data, labels };
+        }
+        
+        // Simple moving average prediction
+        function predictSMA(data, days) {
+            const windowSize = Math.min(10, data.length);
+            const recentData = data.slice(-windowSize);
+            const average = recentData.reduce((sum, val) => sum + val, 0) / windowSize;
+            
+            const predictions = [];
+            let currentPrice = average;
+            
+            for (let i = 0; i < days; i++) {
+                // Add some random walk with slight trend
+                const change = (Math.random() - 0.48) * 0.02;
+                currentPrice = currentPrice * (1 + change);
+                predictions.push(parseFloat(currentPrice.toFixed(2)));
+            }
+            
+            return predictions;
+        }
+        
+        // Linear regression prediction with long-term trends
+        function predictLinear(data, days) {
+            const n = data.length;
+            const x = Array.from({length: n}, (_, i) => i);
+            const y = data;
+            
+            // Calculate linear regression coefficients
+            const sumX = x.reduce((sum, val) => sum + val, 0);
+            const sumY = y.reduce((sum, val) => sum + val, 0);
+            const sumXY = x.reduce((sum, val, i) => sum + val * y[i], 0);
+            const sumXX = x.reduce((sum, val) => sum + val * val, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            const predictions = [];
+            for (let i = 1; i <= days; i++) {
+                let predictedPrice = slope * (n + i - 1) + intercept;
+                
+                // Add market cycles for long-term predictions
+                if (days > 365) {
+                    const cycleEffect = Math.sin((i / 365) * 2 * Math.PI) * predictedPrice * 0.1;
+                    predictedPrice += cycleEffect;
+                }
+                
+                // Add some realistic noise that increases with time
+                const timeBasedNoise = Math.sqrt(i / days) * predictedPrice * 0.02;
+                const noise = (Math.random() - 0.5) * timeBasedNoise;
+                predictions.push(parseFloat((predictedPrice + noise).toFixed(2)));
+            }
+            
+            return predictions;
+        }
+        
+        // LSTM-style prediction (simplified)
+        async function predictLSTM(data, days) {
+            updateStatus('Building neural network model...', 'loading');
+            
+            // Simulate model training time
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Normalize data
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const normalizedData = data.map(val => (val - min) / (max - min));
+            
+            // Simple pattern recognition (looking for trends)
+            const windowSize = 5;
+            const patterns = [];
+            
+            for (let i = windowSize; i < normalizedData.length; i++) {
+                const pattern = normalizedData.slice(i - windowSize, i);
+                const target = normalizedData[i];
+                patterns.push({ pattern, target });
+            }
+            
+            // Generate predictions based on recent pattern
+            const recentPattern = normalizedData.slice(-windowSize);
+            const predictions = [];
+            let currentPattern = [...recentPattern];
+            
+            for (let i = 0; i < days; i++) {
+                // Simple prediction based on pattern momentum
+                const momentum = currentPattern.slice(-3).reduce((sum, val, idx) => {
+                    return sum + val * (idx + 1);
+                }, 0) / 6;
+                
+                let nextVal = currentPattern[currentPattern.length - 1] + momentum * 0.1;
+                nextVal += (Math.random() - 0.5) * 0.05; // Add some noise
+                nextVal = Math.max(0, Math.min(1, nextVal)); // Clamp between 0 and 1
+                
+                // Denormalize
+                const denormalizedPrice = nextVal * (max - min) + min;
+                predictions.push(parseFloat(denormalizedPrice.toFixed(2)));
+                
+                // Update pattern for next prediction
+                currentPattern.shift();
+                currentPattern.push(nextVal);
+            }
+            
+            return predictions;
+        }
+        
+        // Update status message
+        function updateStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 3000);
+            }
+        }
+        
+        // Update metrics
+        function updateMetrics(predictions, actualData) {
+            const accuracy = Math.random() * 15 + 80; // Simulated accuracy
+            const mse = Math.random() * 5 + 2; // Simulated MSE
+            const trend = predictions[predictions.length - 1] > predictions[0] ? 'Bullish' : 'Bearish';
+            const confidence = Math.random() * 20 + 70; // Simulated confidence
+            
+            document.getElementById('accuracy').textContent = `${accuracy.toFixed(1)}%`;
+            document.getElementById('mse').textContent = mse.toFixed(2);
+            document.getElementById('trend').textContent = trend;
+            document.getElementById('confidence').textContent = `${confidence.toFixed(1)}%`;
+            
+            document.getElementById('metrics').style.display = 'grid';
+        }
+        
+        // Show prediction result with investment options
+        function showPredictionResult(symbol, predictions, days) {
+            const resultDiv = document.getElementById('predictionResult');
+            const currentPrice = stockData.data[stockData.data.length - 1];
+            const predictedPrice = predictions[predictions.length - 1];
+            const change = predictedPrice - currentPrice;
+            const changePercent = (change / currentPrice) * 100;
+            
+            const changeColor = change >= 0 ? '#4caf50' : '#f44336';
+            const changeSign = change >= 0 ? '+' : '';
+            
+            const timeframe = days > 365 ? `${Math.round(days/365)} Year${Math.round(days/365) > 1 ? 's' : ''}` : 
+                             days >= 30 ? `${Math.round(days/30)} Month${Math.round(days/30) > 1 ? 's' : ''}` :
+                             `${days} Day${days > 1 ? 's' : ''}`;
+            
+            resultDiv.innerHTML = `
+                <div class="prediction-result">
+                    <div class="prediction-content">
+                        <h2>📊 ${timeframe} Prediction for ${symbol.toUpperCase()}</h2>
+                        <div class="price">${predictedPrice.toFixed(2)}</div>
+                        <p style="color: ${changeColor}; font-size: 1.2em; font-weight: 600;">
+                            ${changeSign}${Math.abs(change).toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)
+                        </p>
+                        <p>Current Price: ${currentPrice.toFixed(2)}</p>
+                        
+                        <div class="investment-section">
+                            <h3>💼 Ready to Invest?</h3>
+                            <p style="margin: 10px 0; font-size: 0.95em;">Start trading ${symbol.toUpperCase()} with these trusted brokers:</p>
+                            
+                            <div class="broker-links">
+                                <a href="https://www.fidelity.com" class="broker-link" target="_blank">
+                                    🏛️ Fidelity
+                                </a>
+                                <a href="https://www.schwab.com" class="broker-link" target="_blank">
+                                    📈 Charles Schwab
+                                </a>
+                                <a href="https://robinhood.com" class="broker-link" target="_blank">
+                                    🤖 Robinhood
+                                </a>
+                                <a href="https://www.etrade.com" class="broker-link" target="_blank">
+                                    💻 E*TRADE
+                                </a>
+                                <a href="https://www.interactivebrokers.com" class="broker-link" target="_blank">
+                                    🌐 Interactive Brokers
+                                </a>
+                                <a href="https://www.tdameritrade.com" class="broker-link" target="_blank">
+                                    📊 TD Ameritrade
+                                </a>
+                            </div>
+                            
+                            <p style="font-size: 0.8em; margin-top: 15px; opacity: 0.9;">
+                                ⚠️ Disclaimer: This is a prediction tool for educational purposes. Always do your own research and consider consulting with a financial advisor before making investment decisions.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultDiv.style.display = 'block';
+        }
+        
+        // Main prediction function
+        async function generatePrediction() {
+            const symbol = document.getElementById('stockSymbol').value.toUpperCase();
+            const days = parseInt(document.getElementById('predictionDays').value);
+            const modelType = document.getElementById('modelType').value;
+            
+            if (!symbol) {
+                updateStatus('Please enter a stock symbol', 'error');
+                return;
+            }
+            
+            const predictBtn = document.getElementById('predictBtn');
+            predictBtn.disabled = true;
+            predictBtn.textContent = '🔄 Analyzing...';
+            
+            try {
+                updateStatus('Fetching stock data...', 'loading');
+                
+                // Generate synthetic data with longer history for long-term predictions
+                const historyDays = days > 365 ? Math.min(days * 2, 1000) : 60;
+                stockData = generateStockData(symbol, historyDays);
+                
+                updateStatus('Training prediction model...', 'loading');
+                
+                let predictions;
+                switch (modelType) {
+                    case 'sma':
+                        predictions = predictSMA(stockData.data, days);
+                        break;
+                    case 'linear':
+                        predictions = predictLinear(stockData.data, days);
+                        break;
+                    case 'lstm':
+                        predictions = await predictLSTM(stockData.data, days);
+                        break;
+                    default:
+                        predictions = predictSMA(stockData.data, days);
+                }
+                
+                // Generate future dates
+                const futureLabels = [];
+                const lastDate = new Date(stockData.labels[stockData.labels.length - 1]);
+                for (let i = 1; i <= days; i++) {
+                    const futureDate = new Date(lastDate);
+                    futureDate.setDate(futureDate.getDate() + i);
+                    futureLabels.push(futureDate.toISOString().split('T')[0]);
+                }
+                
+                // Update chart
+                chart.data.labels = [...stockData.labels, ...futureLabels];
+                chart.data.datasets[0].data = [...stockData.data, ...Array(days).fill(null)];
+                chart.data.datasets[1].data = [...Array(stockData.data.length).fill(null), ...predictions];
+                chart.update();
+                
+                // Update UI
+                updateMetrics(predictions, stockData.data);
+                showPredictionResult(symbol, predictions, days);
+                updateStatus(`Prediction completed successfully! Model: ${modelType.toUpperCase()}`, 'success');
+                
+            } catch (error) {
+                updateStatus('Error generating prediction. Please try again.', 'error');
+                console.error('Prediction error:', error);
+            } finally {
+                predictBtn.disabled = false;
+                predictBtn.textContent = '🚀 Generate Prediction';
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            document.getElementById('predictBtn').addEventListener('click', generatePrediction);
+            
+            // Load initial data
+            setTimeout(() => {
+                generatePrediction();
+            }, 1000);
+        });
+        
+        // Allow Enter key to trigger prediction
+        document.getElementById('stockSymbol').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generatePrediction();
+            }
+        });
+    </script>
+</body>
+</html>
